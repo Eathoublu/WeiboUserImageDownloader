@@ -45,7 +45,7 @@ class UserImageGetter():
         self.gkv = GetKeyValue
         self.rule = re.compile('(<.*?>)', re.S)
 
-    def run(self, uid, containerid='1076032812574391', verbose=False):
+    def run(self, uid, containerid='', verbose=False):
         if not os.path.exists(uid):
             os.mkdir(uid)
             os.chdir(uid)
