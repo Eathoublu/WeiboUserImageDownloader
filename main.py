@@ -44,21 +44,28 @@ class UserImageGetter():
     def __init__(self):
         self.gkv = GetKeyValue
         self.rule = re.compile('(<.*?>)', re.S)
+        self.crule = re.compile('"weibo","containerid":"(.*?)"', re.S)
+        self.uid = None
 
-    def run(self, uid, containerid='', verbose=False):
+    def run(self, uid, verbose=False):
+        self.uid = uid
         if not os.path.exists(uid):
             os.mkdir(uid)
-            os.chdir(uid)
+        containerid = self.getcid()
+        if verbose:
+            print('Container ID is:{}'.format(containerid))
         url = 'https://m.weibo.cn/api/container/getIndex?uid={}&type=uid&value={}&containerid={}'.format(uid, uid, containerid)
+        if verbose:
+            print('URL is:{}'.format(url))
         reqcontent = self.request(url)
-        # print(reqcontent)
+
         loadjson = self.gkv(o=reqcontent, mode='s')
         while True:
             time.sleep(0.5)
-            try:
-                since_id = loadjson.search_key('since_id')[0]
-            except:
-                break
+            # try:
+            since_id = loadjson.search_key('since_id')[0]
+            # except:
+            #     break
             if verbose:
                 print('since_id:{}'.format(since_id))
             url2 = 'https://m.weibo.cn/api/container/getIndex?uid={}&type=uid&value={}&containerid={}&since_id={}'.format(
@@ -82,6 +89,8 @@ class UserImageGetter():
                     time.sleep(0.2)
             print('Done...Enter Next page. Current time:{}'.format(ctime))
 
+            # quit()
+        # print(req.content)
     def parseblog(self, blogjson):
         content = blogjson['mblog']['text']
         content = self.rule.sub('', str(content))
@@ -97,13 +106,38 @@ class UserImageGetter():
             return picsjson['large']['url']
         return ['url']
 
+    def getcid(self):
 
-    @staticmethod
-    def request(url):
+        headers = {
+            ':authority': 'm.weibo.cn',
+            ':method': 'GET',
+            ':path': '/api/container/getIndex?type=uid&value={}'.format(self.uid),
+            ':scheme': 'https',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'accept-encoding': 'gzip, deflate, br',
+            'accept-language': 'zh-CN,zh;q=0.9',
+            'cache-control': 'max-age=0',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'same-origin',
+            'sec-fetch-site': 'same-origin',
+            'upgrade-insecure-requests': '1',
+            'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Mobile Safari/537.36',
+        }
+
+        url = 'https://m.weibo.cn/api/container/getIndex?type=uid&value={}'.format(self.uid)
+
+        req = requests.get(url, headers=headers)
+        cid = self.crule.findall(req.content)[0]
+        if not cid:
+            raise Exception('no cid.')
+        return cid
+
+
+    def request(self, url):
         headers = {
             'Accept': 'application/json, text/plain, */*',
             'MWeibo-Pwa': '1',
-            'Referer': 'https://m.weibo.cn/u/{}?uid={}'.format(uid, uid),
+            'Referer': 'https://m.weibo.cn/u/{}?uid={}'.format(self.uid, self.uid),
             'Sec-Fetch-Dest': 'empty',
             'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Mobile Safari/537.36',
             'X-Requested-With': 'XMLHttpRequest',
@@ -115,7 +149,7 @@ if __name__ == '__main__':
 
     uig = UserImageGetter()
     while True:
-        print('请输入带爬用户的id')
+        print('请输入待爬用户的id：')
         uid = raw_input('>>>')
         uig.run(uid=uid)
         print('用户{}图片爬取完成。'.format(uid))
